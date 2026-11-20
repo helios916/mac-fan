@@ -166,7 +166,15 @@ rows, and the list reports `N of 31`.
 ## Donate
 
 If mac-fan keeps your Mac cool, you can support development through
-[GitHub Sponsors](https://github.com/sponsors/helios916).
+[GitHub Sponsors](https://github.com/sponsors/helios916) or by scanning one of
+the codes below.
+
+<table>
+<tr>
+<td align="center"><img src="images/donate-wechat.svg" width="180" alt="WeChat Pay QR code"><br><sub>WeChat Pay</sub></td>
+<td align="center"><img src="images/donate-alipay.svg" width="180" alt="Alipay QR code"><br><sub>Alipay</sub></td>
+</tr>
+</table>
 
 ## License
 
