@@ -32,11 +32,13 @@ Intel Mac 不暴露相同的传感器键，传感器发现为尽力而为。
 ./build.sh --install DIR    # 构建并复制到 DIR
 ```
 
-或者直接从 GitHub 安装——脚本会下载源码、用本机 Go 工具链编译，再把二进制复制到 `~/.local/bin`：
+或者直接从 GitHub 安装——脚本会下载源码、自动处理构建依赖、在本机编译，再把二进制复制到 `~/.local/bin`：
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/helios916/mac-fan/main/install.sh | bash
 ```
+
+缺 Go 时脚本会自动下载便携工具链到 `~/.local/share/mac-fan/toolchain`；缺 Xcode Command Line Tools 时会唤起系统安装器，点一次「安装」并等待完成即可（Apple 不提供无交互安装接口，这一步无法完全后台完成）。Go 工具链下载失败时会自动回退到 `golang.google.cn` 镜像，也可以设置 `MAC_FAN_GO_BASE` 指定其他镜像。
 
 指定其他安装目录：`| bash -s -- /usr/local/bin`。
 

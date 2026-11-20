@@ -39,12 +39,18 @@ From a checkout:
 ./build.sh --install DIR    # builds and copies to DIR
 ```
 
-Or install straight from GitHub — the script downloads the source, builds it
-locally with your Go toolchain, then copies the binary to `~/.local/bin`:
+Or install straight from GitHub — the script downloads the source, sorts out
+build dependencies, compiles locally, then copies the binary to `~/.local/bin`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/helios916/mac-fan/main/install.sh | bash
 ```
+
+If Go is missing it downloads a portable toolchain into
+`~/.local/share/mac-fan/toolchain`; if Xcode Command Line Tools are missing it
+opens the system installer and waits for you to click 「Install」 once.
+The toolchain download falls back to `golang.google.cn` when `go.dev` is
+unreachable; override with `MAC_FAN_GO_BASE`.
 
 Pass a different target with `| bash -s -- /usr/local/bin`.
 
