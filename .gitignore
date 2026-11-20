@@ -1,0 +1,8 @@
+# built binary
+/mac-fan
+
+# macOS
+.DS_Store
+
+# editor / tooling
+.trae/
