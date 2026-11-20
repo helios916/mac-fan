@@ -165,14 +165,14 @@ rows, and the list reports `N of 31`.
 
 ## Donate
 
-If mac-fan keeps your Mac cool, you can support development through
-[GitHub Sponsors](https://github.com/sponsors/helios916) or by scanning one of
-the codes below.
+If mac-fan keeps your Mac cool, you can support development through one of
+these options:
 
 <table>
 <tr>
-<td align="center"><img src="images/donate-wechat.jpg" width="200" alt="WeChat Pay QR code"><br><sub>WeChat Pay</sub></td>
-<td align="center"><img src="images/donate-alipay.jpg" width="200" alt="Alipay QR code"><br><sub>Alipay</sub></td>
+<td align="center"><img src="images/donate-wechat.png" width="220" alt="WeChat Pay QR code"></td>
+<td align="center"><img src="images/donate-alipay.png" width="220" alt="Alipay QR code"></td>
+<td align="center"><a href="https://github.com/sponsors/helios916"><img src="images/donate-sponsors.png" width="220" alt="GitHub Sponsors"></a></td>
 </tr>
 </table>
 

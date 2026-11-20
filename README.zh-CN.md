@@ -136,12 +136,13 @@ sudo mac-fan auto 0
 
 ## 赞助
 
-如果 mac-fan 对你有帮助，欢迎通过 [GitHub Sponsors](https://github.com/sponsors/helios916) 支持这个项目，也可以直接扫下面的收款码。
+如果 mac-fan 对你有帮助，欢迎通过下面任一方式支持这个项目：
 
 <table>
 <tr>
-<td align="center"><img src="images/donate-wechat.jpg" width="200" alt="微信赞赏码"><br><sub>微信支付</sub></td>
-<td align="center"><img src="images/donate-alipay.jpg" width="200" alt="支付宝收款码"><br><sub>支付宝</sub></td>
+<td align="center"><img src="images/donate-wechat.png" width="220" alt="微信赞赏码"></td>
+<td align="center"><img src="images/donate-alipay.png" width="220" alt="支付宝收款码"></td>
+<td align="center"><a href="https://github.com/sponsors/helios916"><img src="images/donate-sponsors.png" width="220" alt="GitHub Sponsors"></a></td>
 </tr>
 </table>
 
