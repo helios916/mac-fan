@@ -140,8 +140,8 @@ sudo mac-fan auto 0
 
 <table>
 <tr>
-<td align="center"><img src="images/donate-wechat.svg" width="180" alt="微信赞赏码"><br><sub>微信支付</sub></td>
-<td align="center"><img src="images/donate-alipay.svg" width="180" alt="支付宝收款码"><br><sub>支付宝</sub></td>
+<td align="center"><img src="images/donate-wechat.jpg" width="200" alt="微信赞赏码"><br><sub>微信支付</sub></td>
+<td align="center"><img src="images/donate-alipay.jpg" width="200" alt="支付宝收款码"><br><sub>支付宝</sub></td>
 </tr>
 </table>
 

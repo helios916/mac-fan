@@ -171,8 +171,8 @@ the codes below.
 
 <table>
 <tr>
-<td align="center"><img src="images/donate-wechat.svg" width="180" alt="WeChat Pay QR code"><br><sub>WeChat Pay</sub></td>
-<td align="center"><img src="images/donate-alipay.svg" width="180" alt="Alipay QR code"><br><sub>Alipay</sub></td>
+<td align="center"><img src="images/donate-wechat.jpg" width="200" alt="WeChat Pay QR code"><br><sub>WeChat Pay</sub></td>
+<td align="center"><img src="images/donate-alipay.jpg" width="200" alt="Alipay QR code"><br><sub>Alipay</sub></td>
 </tr>
 </table>
 
