@@ -134,6 +134,10 @@ sudo mac-fan auto 0
 - 退出（或按 `R`）会把所有被改动过的风扇恢复为自动模式；`mac-fan` 不会在退出时把风扇留在手动值。
 - 只想观察温度时优先使用 `--read-only`。
 
+## 赞助
+
+如果 mac-fan 对你有帮助，欢迎通过 [GitHub Sponsors](https://github.com/sponsors/helios916) 支持这个项目。
+
 ## 许可证
 
 MIT——见 [LICENSE](LICENSE)。

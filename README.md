@@ -163,6 +163,11 @@ rows, and the list reports `N of 31`.
   was touched; `mac-fan` never leaves a fan pinned at a manual value on exit.
 - Prefer `--read-only` when you only want to watch temperatures.
 
+## Donate
+
+If mac-fan keeps your Mac cool, you can support development through
+[GitHub Sponsors](https://github.com/sponsors/helios916).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
