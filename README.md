@@ -6,7 +6,7 @@ A terminal UI for Apple Silicon Macs that reads the thermal sensors and drives t
 fans directly through AppleSMC — no daemon, no kernel extension, no third-party
 dependencies. Written in Go with cgo bindings to IOKit.
 
-![mac-fan TUI showing the thermal schematic and sensor curves](images/tui_image.png)
+![mac-fan TUI showing the thermal schematic and sensor curves](images/fan_tui.png)
 
 ## Features
 

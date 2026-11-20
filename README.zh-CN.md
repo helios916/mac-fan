@@ -4,7 +4,7 @@
 
 面向 Apple Silicon Mac 的终端 UI：直接通过 AppleSMC 读取温度传感器并控制风扇——无守护进程、无内核扩展、无第三方依赖。使用 Go 编写，通过 cgo 调用 IOKit。
 
-![mac-fan TUI：左侧热力示意图与右侧传感器曲线](images/tui_image.png)
+![mac-fan TUI：左侧热力示意图与右侧传感器曲线](images/fan_tui.png)
 
 ## 功能
 
