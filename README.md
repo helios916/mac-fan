@@ -31,12 +31,25 @@ Intel Macs do not expose the same sensor keys; sensor discovery is best-effort.
 
 ## Build and install
 
+From a checkout:
+
 ```sh
-make                # builds ./mac-fan and ad-hoc signs it
-make install-user   # builds and copies to ~/.local/bin/mac-fan
+./build.sh                  # builds ./mac-fan and ad-hoc signs it
+./build.sh --install        # builds and copies to ~/.local/bin
+./build.sh --install DIR    # builds and copies to DIR
 ```
 
-Other targets: `make build` (no signing), `make sign`, `make clean`.
+Or install straight from GitHub — the script downloads the source, builds it
+locally with your Go toolchain, then copies the binary to `~/.local/bin`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/helios916/mac-fan/main/install.sh | bash
+```
+
+Pass a different target with `| bash -s -- /usr/local/bin`.
+
+Make targets remain available: `make` (build + sign), `make install-user`,
+`make build` (no signing), `make sign`, `make clean`.
 
 ## Usage
 

@@ -24,12 +24,23 @@ Intel Mac 不暴露相同的传感器键，传感器发现为尽力而为。
 
 ## 构建与安装
 
+在仓库目录内：
+
 ```sh
-make                # 构建 ./mac-fan 并做 ad-hoc 签名
-make install-user   # 构建并复制到 ~/.local/bin/mac-fan
+./build.sh                  # 构建 ./mac-fan 并做 ad-hoc 签名
+./build.sh --install        # 构建并复制到 ~/.local/bin
+./build.sh --install DIR    # 构建并复制到 DIR
 ```
 
-其他目标：`make build`（不签名）、`make sign`、`make clean`。
+或者直接从 GitHub 安装——脚本会下载源码、用本机 Go 工具链编译，再把二进制复制到 `~/.local/bin`：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/helios916/mac-fan/main/install.sh | bash
+```
+
+指定其他安装目录：`| bash -s -- /usr/local/bin`。
+
+Make 目标仍然可用：`make`（构建 + 签名）、`make install-user`、`make build`（不签名）、`make sign`、`make clean`。
 
 ## 使用
 
