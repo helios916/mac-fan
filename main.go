@@ -110,15 +110,44 @@ func runOnce(model, chip string, writable, jsonOut bool) int {
 }
 
 func maybeElevate() {
-	fmt.Print("\n mac-fan needs root privileges to change fan speed.\n Relaunch with sudo? [y/N] ")
-	reader := bufio.NewReader(os.Stdin)
-	line, err := reader.ReadString('\n')
-	if err != nil && line == "" {
-		return
-	}
-	line = strings.TrimSpace(line)
-	if len(line) == 0 || line[0] != 'y' && line[0] != 'Y' {
-		return
+	fmt.Print("\n " + cText + "mac-fan needs root privileges to change fan speed." + cReset + "\n")
+	fmt.Print(" " + cDim + "◎ Use --read-only to skip this prompt next time" + cReset + "\n")
+	fmt.Print(" " + cAccent + "▶ " + cReset + "Enter continue with sudo, Space skip: ")
+
+	old, err := makeRaw(0)
+	if err != nil {
+		// Not a terminal we can put in raw mode; fall back to a line prompt.
+		fmt.Print("\n " + cDim + "Enter = continue, anything else = skip: " + cReset)
+		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		if strings.TrimSpace(line) != "" {
+			fmt.Print("\n")
+			return
+		}
+	} else {
+		var key byte
+		buf := make([]byte, 1)
+		for {
+			if _, err := os.Stdin.Read(buf); err != nil {
+				restoreTermios(0, old)
+				fmt.Print("\n")
+				return
+			}
+			key = buf[0]
+			if key == '\r' || key == '\n' || key == ' ' || key == 0x03 {
+				break
+			}
+		}
+		restoreTermios(0, old)
+		switch key {
+		case 0x03:
+			fmt.Print("\n")
+			os.Exit(130)
+		case ' ':
+			fmt.Print(cDim + "read-only" + cReset + "\n")
+			return
+		default:
+			fmt.Print(cDim + "sudo" + cReset + "\n")
+		}
 	}
 
 	exe, err := os.Executable()
