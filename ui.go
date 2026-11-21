@@ -288,6 +288,18 @@ func joinRPM(vals []int) string {
 	return strings.Join(parts, " / ")
 }
 
+func (u *UI) focusInput() {
+	if !u.writable {
+		u.setStatus(statusErr, "Read-only: run with sudo mac-fan to change fan speed")
+		return
+	}
+	if len(u.targets()) == 0 {
+		return
+	}
+	u.editing = true
+	u.buf = ""
+}
+
 func (u *UI) beginInput(ch byte) {
 	if ch < '0' || ch > '9' {
 		return
@@ -937,10 +949,38 @@ func (u *UI) controlsLine(cols int) (string, []uiButton) {
 		b.WriteString(s)
 		x += visWidth(s)
 	}
-	for i, c := range all {
-		if i > 0 {
-			write("  ")
+
+	// Always-visible RPM field: both an affordance and a live target readout.
+	bg := "\x1b[48;5;236m"
+	if u.editing {
+		bg = "\x1b[48;5;238m"
+	}
+	value := ""
+	if u.sel < len(u.fans) {
+		if u.editing {
+			value = u.buf + "▏"
+		} else {
+			value = fmt.Sprintf("%.0f", u.fans[u.sel].Target)
 		}
+	}
+	var box strings.Builder
+	box.WriteString(bg + cReset + bg + "[" + cReset + bg)
+	box.WriteString(cAccent + cBold + " RPM " + cReset)
+	box.WriteString(bg)
+	if u.editing {
+		box.WriteString(cAccent + cBold)
+	} else {
+		box.WriteString(cText)
+	}
+	box.WriteString(padLeft(value, 5))
+	box.WriteString(cReset + bg + " ] " + cReset)
+
+	start := x
+	write(box.String())
+	regions = append(regions, uiButton{x0: start, x1: x - 1, action: keyFocusInput, sel: -1})
+
+	for _, c := range all {
+		write("  ")
 		start := x
 		write(" \x1b[48;5;237m" + cBold + cAccent + " " + c.glyph + " " + cReset)
 		if labels && c.label != "" {
@@ -952,13 +992,9 @@ func (u *UI) controlsLine(cols int) (string, []uiButton) {
 }
 
 func (u *UI) statusLine(cols int) string {
-	if u.editing && u.sel < len(u.fans) {
-		label := fmt.Sprintf("Fan %d", u.fans[u.sel].Index)
-		if n := u.checkedCount(); n > 0 {
-			label = fmt.Sprintf("%d fans", n)
-		}
-		s := " " + cAccent + cBold + label + " · target RPM: " + cReset +
-			cText + u.buf + cAccent + "▏" + cReset + cDim + "  Enter apply · Q cancel" + cReset
+	if u.editing {
+		s := " " + cAccent + cBold + "Editing target RPM" + cReset +
+			cDim + "  Enter apply · Q cancel · Backspace edit" + cReset
 		return truncate(s, cols-1)
 	}
 	text := ""
@@ -981,7 +1017,7 @@ func (u *UI) statusLine(cols int) string {
 		text = fmt.Sprintf("%d %s selected · system control is restored on exit", u.checkedCount(), plural(u.checkedCount(), "fan", "fans"))
 		col = cPurple
 	default:
-		text = "Space selects multiple fans · digits set RPM · system control is restored on exit"
+		text = "Space selects multiple fans · click RPM or type 0-9 · system control is restored on exit"
 	}
 	return truncate(" "+col+text+cReset, cols-1)
 }

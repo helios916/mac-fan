@@ -138,7 +138,7 @@ is restored on exit, on `Ctrl-C`, and on `SIGTERM`.
 | `Space` | toggle selection and move to the next fan |
 | `+` / `-` | raise/lower the selected (or cursor) fans, in manual mode |
 | `PgUp` / `PgDn` | raise/lower by 25% of the fan's range |
-| `0`–`9` | start typing an exact target RPM: `Enter` applies, `Backspace` edits, `Q` cancels |
+| `0`–`9` | type an exact target RPM in the always-visible `RPM` field: `Enter` applies, `Backspace` edits, `Q` cancels (clicking the field focuses it too) |
 | `M` | switch selected fans to manual control |
 | `A` | restore selected fans to automatic control |
 | `R` | restore **all** fans to automatic control |

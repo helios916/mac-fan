@@ -309,6 +309,8 @@ func handleKey(ui *UI, ev inputEvent) bool {
 		ui.allAuto()
 	case keyToggle:
 		ui.toggle()
+	case keyFocusInput:
+		ui.focusInput()
 	case keyCancel, keyQuit:
 		return true
 	}

@@ -29,6 +29,7 @@ const (
 	keyEnter
 	keyBackspace
 	keyCancel
+	keyFocusInput
 )
 
 // inputEvent carries a key press or a mouse event. Mouse events arrive with
