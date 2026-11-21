@@ -18,7 +18,7 @@ mac-fan list --json
 ```
 
 ```text
-mac-fan 1.0.0: 2 fans · MacBookPro18,1 · Apple M1 Pro
+mac-fan 1.0.1: 2 fans · MacBookPro18,1 · Apple M1 Pro
   #0     0 RPM   target    0   range 1499-4296 RPM   AUTO
   #1     0 RPM   target    0   range 1499-4744 RPM   AUTO
 ```
