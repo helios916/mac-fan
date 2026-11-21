@@ -434,6 +434,9 @@ func (u *UI) chassisLines(width, avail, minHeight int) []string {
 	for i, l := range lines {
 		lines[i] = colorTemps(l)
 	}
+	if len(lines) > 0 {
+		lines[0] = panelTop(width, "HEATMAP", "")
+	}
 	if len(lines) > avail {
 		lines = lines[:avail]
 	}

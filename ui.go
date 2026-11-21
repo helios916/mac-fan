@@ -917,7 +917,12 @@ func (u *UI) render() {
 	}
 
 	// Rows still needed below this point: the SENSORS panel, bar and status.
+	// Both panels stop growing once roughly 20 sensors fit: the sensor list
+	// scrolls for the rest, and the schematic keeps a matching height.
 	gridAvail := rows - len(lines) - 2
+	if gridAvail > 26 {
+		gridAvail = 26
+	}
 	if gridAvail < 3 {
 		gridAvail = 3
 	}
