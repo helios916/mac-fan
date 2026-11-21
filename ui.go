@@ -402,14 +402,6 @@ func (u *UI) headerLine(cols int) string {
 	return left + strings.Repeat(" ", gap) + badge
 }
 
-func (u *UI) sectionTitle(title, sub string, cols int) string {
-	s := " " + cBold + title + cReset
-	if sub != "" {
-		s += "  " + cDim + sub + cReset
-	}
-	return truncate(s, cols-1)
-}
-
 func (u *UI) fanSummary() string {
 	n := len(u.fans)
 	if n == 0 {
@@ -601,15 +593,6 @@ func (u *UI) groupHeader(g Group) string {
 	return " " + cBrand + cBold + "─ " + g.Title() + cReset
 }
 
-func heatRamp() string {
-	var b strings.Builder
-	for _, c := range []int{17, 24, 30, 35, 42, 214, 208, 196} {
-		b.WriteString(fmt.Sprintf("\x1b[48;5;%dm  ", c))
-	}
-	b.WriteString(cReset)
-	return b.String()
-}
-
 func sensorRow(s *Sensor, width int) string {
 	const nameW = 9
 	const valW = 7
@@ -658,10 +641,49 @@ func (u *UI) renderViews(views []groupView, width int, headers bool) []string {
 	return lines
 }
 
+// boxTop draws a rounded top border with the panel title on the left and an
+// optional dim note on the right, sized to exactly width cells.
+func panelTop(width int, title, note string) string {
+	tw := visWidth(title)
+	nw := visWidth(note)
+	if nw > 0 {
+		room := width - 11 - tw
+		if nw > room {
+			// Drop the note rather than clipping it mid-word.
+			note, nw = "", 0
+		}
+	}
+	if nw == 0 {
+		fill := width - 6 - tw
+		if fill < 1 {
+			fill = 1
+		}
+		return cDim + "╭─ " + cReset + cAccent + cBold + title + cReset +
+			cDim + " " + strings.Repeat("─", fill) + "─╮" + cReset
+	}
+	fill := width - 9 - tw - nw
+	if fill < 1 {
+		fill = 1
+	}
+	return cDim + "╭─ " + cReset + cAccent + cBold + title + cReset +
+		cDim + " " + strings.Repeat("─", fill) + "─ " + cReset +
+		cDim + note + " ─╮" + cReset
+}
+
+// panelLines wraps body in a rounded panel of the given outer width.
+func (u *UI) panelLines(width int, title, note string, body []string) []string {
+	inner := width - 4
+	out := make([]string, 0, len(body)+2)
+	out = append(out, panelTop(width, title, note))
+	for _, l := range body {
+		out = append(out, cDim+"│"+cReset+" "+padRight(truncate(l, inner), inner)+" "+cDim+"│"+cReset)
+	}
+	out = append(out, cDim+"╰"+strings.Repeat("─", width-2)+"╯"+cReset)
+	return out
+}
+
 type sensorLayout struct {
 	lines []string
-	shown int
-	total int
 }
 
 func (u *UI) layoutSensors(cols, avail int) sensorLayout {
@@ -670,36 +692,51 @@ func (u *UI) layoutSensors(cols, avail int) sensorLayout {
 	for _, v := range views {
 		total += len(v.sensors)
 	}
-	if total == 0 || avail <= 0 {
+	if total == 0 || avail <= 2 {
 		return sensorLayout{
 			lines: []string{" " + cDim + "No readable thermal sensors" + cReset},
-			shown: 0, total: 0,
 		}
 	}
 
+	padBody := func(lines []string, n int) []string {
+		for len(lines) < n {
+			lines = append(lines, "")
+		}
+		if len(lines) > n {
+			lines = lines[:n]
+		}
+		return lines
+	}
+
 	// Wide terminals get two real panels: a machine schematic on the left and
-	// the sensor list (name + value + curve) on the right. The compact
-	// schematic needs 17 rows; below that the panels are not split.
+	// the sensor list on the right. The compact schematic needs 17 rows.
 	if cols >= 96 && avail >= 17 {
-		rightW := cols - chassisW - 2
-		linesR, shown := u.renderColumn(views, rightW, avail)
-		if chassis := u.chassisLines(chassisW, avail, len(linesR)); chassis != nil {
+		// Leave one column free at the right edge so the closing border is not
+		// clipped when the frame is truncated to cols-1.
+		rightW := cols - chassisW - 3
+		bodyH := avail - 2
+		linesR, shown := u.renderColumn(views, rightW-4, bodyH)
+		box := u.panelLines(rightW, "SENSORS", u.sensorNote(shown, total), padBody(linesR, bodyH))
+		if chassis := u.chassisLines(chassisW, avail, len(box)); chassis != nil {
 			height := len(chassis)
-			if len(linesR) > height {
-				height = len(linesR)
+			if len(box) > height {
+				height = len(box)
 			}
 			if height > avail {
 				height = avail
 			}
 			return sensorLayout{
-				lines: mergePanels(chassis, linesR, chassisW, height),
-				shown: shown, total: total,
+				lines: mergePanels(chassis, box, chassisW, height),
 			}
 		}
 	}
 
-	lines, shown := u.renderColumn(views, cols-1, avail)
-	return sensorLayout{lines: lines, shown: shown, total: total}
+	w := cols - 1
+	bodyH := avail - 2
+	lines, shown := u.renderColumn(views, w-4, bodyH)
+	return sensorLayout{
+		lines: u.panelLines(w, "SENSORS", u.sensorNote(shown, total), padBody(lines, bodyH)),
+	}
 }
 
 // mergePanels joins the schematic and the sensor column side by side, padding
@@ -766,23 +803,15 @@ func (u *UI) scrollSensors(delta int) {
 	}
 }
 
-func (u *UI) sensorSummary(shown, total int, cols int) string {
-	sub := fmt.Sprintf("%d %s", shown, plural(shown, "sensor", "sensors"))
+func (u *UI) sensorNote(shown, total int) string {
+	note := fmt.Sprintf("%d %s", total, plural(total, "sensor", "sensors"))
 	if peak := peakTemp(u.sensors); peak > 0 {
-		sub = fmt.Sprintf("peak %s · %s", degreeText(peak), sub)
-	}
-	if shown < total {
-		sub = fmt.Sprintf("peak %s · %d of %d sensors", degreeText(peakTemp(u.sensors)), shown, total)
+		note += " · peak " + degreeText(peak)
 	}
 	if u.maxScroll > 0 {
-		sub += " · scroll ↕"
+		note += fmt.Sprintf(" · %d/%d ↕", shown, total)
 	}
-	if cols >= 118 {
-		sub = "25° " + heatRamp() + " 95°  ·  value = °C  ·  curve = last 30 s  ·  " + sub
-	} else if cols >= 92 {
-		sub += " · curve = last 30 s"
-	}
-	return sub
+	return note
 }
 
 // controlsLine renders the bottom control bar as shaded buttons and returns
@@ -855,42 +884,44 @@ func (u *UI) render() {
 
 	lines := make([]string, 0, rows+4)
 	lines = append(lines, u.headerLine(cols))
-	lines = append(lines, u.sectionTitle("FANS", u.fanSummary(), cols))
-	var fanButtons []uiButton
+
+	fanW := cols - 1
+	fanInner := fanW - 4
+	big := cols >= 96 && rows >= 30
+	fanBody := make([]string, 0, 8)
+	type fanPos struct{ row, sel int }
+	var positions []fanPos
 	if len(u.fans) == 0 {
-		lines = append(lines, "   "+cWarn+"No fans detected on this Mac"+cReset)
+		fanBody = append(fanBody, " "+cWarn+"No fans detected on this Mac"+cReset)
 	} else {
-		big := cols >= 96 && rows >= 30
 		for i, f := range u.fans {
 			if !big {
-				lines = append(lines, u.fanRow(i, f, cols))
-				fanButtons = append(fanButtons, uiButton{y: len(lines), x0: 1, x1: cols, sel: i})
+				fanBody = append(fanBody, u.fanRow(i, f, fanInner))
+				positions = append(positions, fanPos{len(fanBody) - 1, i})
 				continue
 			}
-			for _, l := range u.fanRowBig(i, f, cols) {
-				lines = append(lines, l)
-				fanButtons = append(fanButtons, uiButton{y: len(lines), x0: 1, x1: cols, sel: i})
+			for _, l := range u.fanRowBig(i, f, fanInner) {
+				fanBody = append(fanBody, l)
+				positions = append(positions, fanPos{len(fanBody) - 1, i})
 			}
 			if i < len(u.fans)-1 {
-				lines = append(lines, "")
+				fanBody = append(fanBody, "")
 			}
 		}
 	}
-
-	// One blank row keeps the fan block and the sensor grid from crowding;
-	// in short terminals that row buys more useful space instead.
-	if cols >= 96 && rows-len(lines)-3 >= 18 {
-		lines = append(lines, "")
+	base := len(lines)
+	lines = append(lines, u.panelLines(fanW, "FANS", u.fanSummary(), fanBody)...)
+	var fanButtons []uiButton
+	for _, p := range positions {
+		fanButtons = append(fanButtons, uiButton{y: base + 2 + p.row, x0: 1, x1: cols, sel: p.sel})
 	}
 
-	// Rows still needed below this point: SENSORS title, control bar, status.
-	gridAvail := rows - len(lines) - 3
-	if gridAvail < 1 {
-		gridAvail = 1
+	// Rows still needed below this point: the SENSORS panel, bar and status.
+	gridAvail := rows - len(lines) - 2
+	if gridAvail < 3 {
+		gridAvail = 3
 	}
 	layout := u.layoutSensors(cols, gridAvail)
-
-	lines = append(lines, u.sectionTitle("SENSORS", u.sensorSummary(layout.shown, layout.total, cols), cols))
 	lines = append(lines, layout.lines...)
 
 	for len(lines) < rows-2 {
