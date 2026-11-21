@@ -19,7 +19,6 @@ const (
 	cWarn   = "\x1b[38;5;214m"
 	cErr    = "\x1b[38;5;203m"
 	cPurple = "\x1b[38;5;177m"
-	cKey    = "\x1b[38;5;252m"
 )
 
 // Precomposed fragments keep fixed styling out of per-frame concatenations
@@ -57,6 +56,18 @@ type UI struct {
 	kind     int
 	expires  time.Time
 	quitting bool
+
+	scroll    int
+	maxScroll int
+	buttons   []uiButton
+}
+
+// uiButton describes a clickable cell range on one rendered row. A negative
+// sel means the button runs a key action; otherwise it selects that fan.
+type uiButton struct {
+	y, x0, x1 int
+	action    key
+	sel       int
 }
 
 func newUI(smc *SMC, fans []*Fan, sensors []*Sensor, model, chip string, writable bool) *UI {
@@ -580,40 +591,6 @@ func (u *UI) renderViews(views []groupView, width int, headers bool) []string {
 	return lines
 }
 
-func trimViews(views []groupView, limit int) []groupView {
-	out := make([]groupView, len(views))
-	for i, v := range views {
-		out[i] = groupView{g: v.g, sensors: append([]*Sensor(nil), v.sensors...)}
-	}
-	lines := 0
-	for _, v := range out {
-		lines += len(v.sensors)
-	}
-	order := []Group{groupBoard, groupWiFi, groupStorage, groupBattery,
-		groupMemory, groupSoC, groupGPU}
-	for lines > limit {
-		changed := false
-		for _, g := range order {
-			for i := range out {
-				if out[i].g != g || len(out[i].sensors) <= 1 {
-					continue
-				}
-				out[i].sensors = out[i].sensors[:len(out[i].sensors)-1]
-				lines--
-				changed = true
-				break
-			}
-			if lines <= limit {
-				break
-			}
-		}
-		if !changed {
-			break
-		}
-	}
-	return out
-}
-
 type sensorLayout struct {
 	lines []string
 	shown int
@@ -677,30 +654,49 @@ func mergePanels(left, right []string, leftW, height int) []string {
 	return out
 }
 
-// renderColumn lays out one sensor column, dropping group headers and then
-// trimming lower-priority groups until the rows fit.
+// renderColumn lays out one sensor column. When the sensors do not fit, the
+// column becomes a scrolling window over the full list instead of dropping
+// entries, so nothing is silently hidden from the user.
 func (u *UI) renderColumn(views []groupView, width, avail int) ([]string, int) {
-	headers := true
-	lines := u.renderViews(views, width, true)
-	if len(lines) > avail {
-		headers = false
-		lines = u.renderViews(views, width, false)
+	full := u.renderViews(views, width, true)
+	headers := make(map[string]struct{}, len(views))
+	total := 0
+	for _, v := range views {
+		total += len(v.sensors)
+		headers[u.groupHeader(v.g)] = struct{}{}
 	}
-	if len(lines) > avail {
-		views = trimViews(views, avail)
-		lines = u.renderViews(views, width, false)
+	if len(full) <= avail {
+		u.scroll = 0
+		u.maxScroll = 0
+		return full, total
 	}
-	if len(lines) > avail {
-		lines = lines[:avail]
+	u.maxScroll = len(full) - avail
+	if u.scroll > u.maxScroll {
+		u.scroll = u.maxScroll
 	}
-	shown := len(lines)
-	if headers {
-		shown = 0
-		for _, v := range views {
-			shown += len(v.sensors)
+	if u.scroll < 0 {
+		u.scroll = 0
+	}
+	window := full[u.scroll : u.scroll+avail]
+	shown := 0
+	for _, l := range window {
+		if _, isHeader := headers[l]; !isHeader {
+			shown++
 		}
 	}
-	return lines, shown
+	return window, shown
+}
+
+// scrollSensors moves the sensor window by delta rows, clamped to the range
+// computed during the last render.
+func (u *UI) scrollSensors(delta int) {
+	u.scroll += delta
+	if u.scroll < 0 {
+		u.scroll = 0
+	}
+	if u.scroll > u.maxScroll {
+		u.scroll = u.maxScroll
+	}
 }
 
 func (u *UI) sensorSummary(shown, total int, cols int) string {
@@ -711,6 +707,9 @@ func (u *UI) sensorSummary(shown, total int, cols int) string {
 	if shown < total {
 		sub = fmt.Sprintf("peak %s · %d of %d sensors", degreeText(peakTemp(u.sensors)), shown, total)
 	}
+	if u.maxScroll > 0 {
+		sub += " · scroll ↕"
+	}
 	if cols >= 118 {
 		sub = "25° " + heatRamp() + " 95°  ·  value = °C  ·  curve = last 30 s  ·  " + sub
 	} else if cols >= 92 {
@@ -719,55 +718,40 @@ func (u *UI) sensorSummary(shown, total int, cols int) string {
 	return sub
 }
 
-func (u *UI) hintsLine(cols int) string {
-	type hint struct{ key, label string }
-	full := []hint{
-		{"↑↓", "move"}, {"Space", "select"}, {"+/-", "speed"},
-		{"M", "manual"}, {"A", "auto"}, {"R", "all auto"}, {"Q", "quit"},
+// controlsLine renders the bottom control bar as shaded buttons and returns
+// their clickable cell ranges. A negative sel in the range means a key action.
+func (u *UI) controlsLine(cols int) (string, []uiButton) {
+	type ctl struct {
+		glyph, label string
+		action       key
 	}
-	slim := []hint{
-		{"↑↓", "move"}, {"Space", "select"}, {"+/-", "speed"},
-		{"M", "manual"}, {"A", "auto"}, {"Q", "quit"},
-	}
-	tiny := []hint{
-		{"↑↓", "move"}, {"Space", "sel"}, {"+/-", "speed"},
-		{"M", "man"}, {"Q", "quit"},
-	}
-	ultra := []hint{
-		{"↑↓", ""}, {"Space", ""}, {"+/-", ""}, {"M", ""}, {"A", ""}, {"R", ""}, {"Q", ""},
+	all := []ctl{
+		{"−", "", keyMinus}, {"+", "", keyPlus},
+		{"M", "manual", keyManual}, {"A", "auto", keyAuto},
+		{"R", "all auto", keyAllAuto}, {"Q", "quit", keyQuit},
 	}
 
-	use := full
-	sep := "  " + cDim + "│" + cReset + "  "
-	switch {
-	case cols >= 96:
-	case cols >= 78:
-		sep = "  "
-	case cols >= 64:
-		use, sep = slim, "  "
-	case cols >= 52:
-		use, sep = tiny, "  "
-	default:
-		use, sep = ultra, "  "
-	}
+	labels := cols >= 96
 
 	var b strings.Builder
-	b.WriteString(" ")
-	for i, h := range use {
-		if i > 0 {
-			b.WriteString(sep)
-		}
-		b.WriteString(cKey)
-		b.WriteString(h.key)
-		b.WriteString(cReset)
-		if h.label != "" {
-			b.WriteString(" ")
-			b.WriteString(cDim)
-			b.WriteString(h.label)
-			b.WriteString(cReset)
-		}
+	var regions []uiButton
+	x := 1
+	write := func(s string) {
+		b.WriteString(s)
+		x += visWidth(s)
 	}
-	return truncate(b.String(), cols-1)
+	for i, c := range all {
+		if i > 0 {
+			write("  ")
+		}
+		start := x
+		write(" \x1b[48;5;237m" + cBold + cAccent + " " + c.glyph + " " + cReset)
+		if labels && c.label != "" {
+			write(" " + cDim + c.label + cReset)
+		}
+		regions = append(regions, uiButton{x0: start, x1: x - 1, action: c.action, sel: -1})
+	}
+	return truncate(b.String(), cols-1), regions
 }
 
 func (u *UI) statusLine(cols int) string {
@@ -805,15 +789,24 @@ func (u *UI) render() {
 	lines := make([]string, 0, rows+4)
 	lines = append(lines, u.headerLine(cols))
 	lines = append(lines, u.sectionTitle("FANS", u.fanSummary(), cols))
+	var fanButtons []uiButton
 	if len(u.fans) == 0 {
 		lines = append(lines, "   "+cWarn+"No fans detected on this Mac"+cReset)
 	} else {
 		for i, f := range u.fans {
 			lines = append(lines, u.fanRow(i, f, cols))
+			fanButtons = append(fanButtons, uiButton{y: len(lines), x0: 1, x1: cols, sel: i})
 		}
 	}
 
-	gridAvail := rows - len(lines) - 1 - 2
+	// One blank row keeps the fan block and the sensor grid from crowding;
+	// in short terminals that row buys more useful space instead.
+	if cols >= 96 && rows-len(lines)-3 >= 18 {
+		lines = append(lines, "")
+	}
+
+	// Rows still needed below this point: SENSORS title, control bar, status.
+	gridAvail := rows - len(lines) - 3
 	if gridAvail < 1 {
 		gridAvail = 1
 	}
@@ -825,7 +818,12 @@ func (u *UI) render() {
 	for len(lines) < rows-2 {
 		lines = append(lines, "")
 	}
-	lines = append(lines, u.hintsLine(cols), u.statusLine(cols))
+	bar, regions := u.controlsLine(cols)
+	for i := range regions {
+		regions[i].y = len(lines) + 1
+	}
+	u.buttons = append(fanButtons, regions...)
+	lines = append(lines, bar, u.statusLine(cols))
 	if len(lines) > rows {
 		lines = lines[:rows]
 	}

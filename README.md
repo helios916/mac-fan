@@ -142,6 +142,7 @@ is restored on exit, on `Ctrl-C`, and on `SIGTERM`.
 | `A` | restore selected fans to automatic control |
 | `R` | restore **all** fans to automatic control |
 | `Q` / `Ctrl-C` | quit and restore automatic control |
+| Mouse | click a fan row to select it, click a control button, wheel over the sensors to scroll |
 
 The status line shows the result of the last action for a few seconds.
 

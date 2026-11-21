@@ -297,6 +297,7 @@ func (u *UI) chassisBody(kind chassisKind, full, spread bool, frame int) []strin
 	lines := make([]string, 0, 24)
 	lines = append(lines, "╭"+strings.Repeat("─", inner)+"╮")
 	lines = append(lines, wrap(u.ventLine(inner)))
+	lines = append(lines, stretchMark)
 
 	single := kind == chassisSingle
 	air := kind == chassisAir
@@ -357,11 +358,13 @@ func (u *UI) chassisBody(kind chassisKind, full, spread bool, frame int) []strin
 		lines = append(lines, wrap(strings.Repeat(" ", p)+s+" "))
 	}
 
+	lines = append(lines, stretchMark)
 	lines = append(lines, wrap(centerIn(u.ssdLine(), inner)))
 	lines = append(lines, wrap(centerIn(u.boardLine(), inner)))
 	lines = append(lines, stretchMark)
 	if full {
 		lines = append(lines, wrap(u.speakerRow(inner)))
+		lines = append(lines, stretchMark)
 	}
 
 	for _, s := range u.batteryBox() {

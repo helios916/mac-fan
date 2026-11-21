@@ -22,7 +22,18 @@ const (
 	keyAllAuto
 	keyToggle
 	keyQuit
+	keyWheelUp
+	keyWheelDown
+	keyClick
 )
+
+// inputEvent carries a key press or a mouse event. Mouse events arrive with
+// 1-based terminal coordinates from SGR mode (1006).
+type inputEvent struct {
+	key key
+	x   int
+	y   int
+}
 
 type winsize struct {
 	Row    uint16
@@ -73,8 +84,9 @@ func restoreTermios(fd int, old *syscall.Termios) {
 	_ = ioctl(fd, syscall.TIOCSETA, unsafe.Pointer(old))
 }
 
-func inputLoop(ch chan<- key) {
+func inputLoop(ch chan<- inputEvent) {
 	r := bufio.NewReader(os.Stdin)
+	emit := func(k key) { ch <- inputEvent{key: k} }
 	for {
 		b, err := r.ReadByte()
 		if err != nil {
@@ -83,25 +95,25 @@ func inputLoop(ch chan<- key) {
 		}
 		switch b {
 		case 0x03:
-			ch <- keyQuit
+			emit(keyQuit)
 		case ' ':
-			ch <- keyToggle
+			emit(keyToggle)
 		case 'q', 'Q':
-			ch <- keyQuit
+			emit(keyQuit)
 		case 'k', 'K':
-			ch <- keyUp
+			emit(keyUp)
 		case 'j', 'J':
-			ch <- keyDown
+			emit(keyDown)
 		case '+', '=':
-			ch <- keyPlus
+			emit(keyPlus)
 		case '-', '_':
-			ch <- keyMinus
+			emit(keyMinus)
 		case 'm', 'M':
-			ch <- keyManual
+			emit(keyManual)
 		case 'a', 'A':
-			ch <- keyAuto
+			emit(keyAuto)
 		case 'r', 'R':
-			ch <- keyAllAuto
+			emit(keyAllAuto)
 		case 0x1b:
 			b2, err := r.ReadByte()
 			if err != nil {
@@ -116,17 +128,24 @@ func inputLoop(ch chan<- key) {
 				close(ch)
 				return
 			}
+			// SGR mouse reports look like ESC [ < Cb ; Cx ; Cy M|m.
+			if b3 == '<' {
+				if ev, ok := readSGRMouse(r); ok {
+					ch <- ev
+				}
+				continue
+			}
 			switch b3 {
 			case 'A':
-				ch <- keyUp
+				emit(keyUp)
 			case 'B':
-				ch <- keyDown
+				emit(keyDown)
 			case '5', '6':
 				if b4, err := r.ReadByte(); err == nil && b4 == '~' {
 					if b3 == '5' {
-						ch <- keyPgUp
+						emit(keyPgUp)
 					} else {
-						ch <- keyPgDn
+						emit(keyPgDn)
 					}
 				}
 			default:
@@ -145,4 +164,43 @@ func inputLoop(ch chan<- key) {
 			}
 		}
 	}
+}
+
+// readSGRMouse parses the numeric part of an SGR mouse report and turns it
+// into a wheel or click event. Releases and drags are ignored.
+func readSGRMouse(r *bufio.Reader) (inputEvent, bool) {
+	params := make([]int, 3)
+	idx := 0
+	for {
+		c, err := r.ReadByte()
+		if err != nil {
+			return inputEvent{}, false
+		}
+		switch {
+		case c >= '0' && c <= '9':
+			params[idx] = params[idx]*10 + int(c-'0')
+		case c == ';':
+			if idx == 2 {
+				return inputEvent{}, false
+			}
+			idx++
+		default:
+			if c != 'M' {
+				return inputEvent{}, false
+			}
+		}
+		if c == 'M' {
+			break
+		}
+	}
+	cb, x, y := params[0], params[1], params[2]
+	switch cb {
+	case 64:
+		return inputEvent{key: keyWheelUp}, true
+	case 65:
+		return inputEvent{key: keyWheelDown}, true
+	case 0:
+		return inputEvent{key: keyClick, x: x, y: y}, true
+	}
+	return inputEvent{}, false
 }

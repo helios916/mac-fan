@@ -184,18 +184,18 @@ func runTUI(model, chip string, writable bool) int {
 	}
 	defer func() {
 		restoreTermios(0, old)
-		fmt.Print(cReset + "\x1b[?25h\x1b[?1049l")
+		fmt.Print(cReset + "\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l")
 	}()
 
-	fmt.Print("\x1b[?1049h\x1b[?25l\x1b[2J\x1b[H")
+	fmt.Print("\x1b[?1049h\x1b[?25l\x1b[2J\x1b[H\x1b[?1000h\x1b[?1006h")
 
 	ui := newUI(smc, fans, sensors, model, chip, writable)
 	if !writable {
 		ui.setStatus(statusInfo, "Read-only mode — run with sudo mac-fan to change fan speed")
 	}
 
-	keys := make(chan key, 32)
-	go inputLoop(keys)
+	events := make(chan inputEvent, 32)
+	go inputLoop(events)
 
 	sig := make(chan os.Signal, 2)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
@@ -215,12 +215,12 @@ func runTUI(model, chip string, writable bool) int {
 		case <-sig:
 			quitTUI(ui, writable)
 			return 0
-		case k, ok := <-keys:
+		case ev, ok := <-events:
 			if !ok {
 				quitTUI(ui, writable)
 				return 0
 			}
-			if handleKey(ui, k) {
+			if handleEvent(ui, ev) {
 				quitTUI(ui, writable)
 				return 0
 			}
@@ -249,6 +249,32 @@ func runTUI(model, chip string, writable bool) int {
 			}
 		}
 	}
+}
+
+func handleEvent(ui *UI, ev inputEvent) bool {
+	switch ev.key {
+	case keyWheelUp:
+		ui.scrollSensors(-3)
+		return false
+	case keyWheelDown:
+		ui.scrollSensors(3)
+		return false
+	case keyClick:
+		for _, b := range ui.buttons {
+			if ev.y != b.y || ev.x < b.x0 || ev.x > b.x1 {
+				continue
+			}
+			if b.sel >= 0 && b.sel < len(ui.fans) {
+				ui.sel = b.sel
+				return false
+			}
+			if b.action != keyNone {
+				return handleKey(ui, b.action)
+			}
+		}
+		return false
+	}
+	return handleKey(ui, ev.key)
 }
 
 func handleKey(ui *UI, k key) bool {
