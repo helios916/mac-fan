@@ -22,6 +22,8 @@
 
 Intel Mac 不暴露相同的传感器键，传感器发现为尽力而为。
 
+仅支持 macOS：风扇控制依赖 IOKit 访问 Apple SMC，Windows 和 Linux 上没有这个接口。代码在这些平台上仍可编译，但启动后会立即提示「仅支持 Apple Silicon Mac」并退出，方便打包和交叉编译时不报链接错误。
+
 ## 安装
 
 Homebrew（推荐）：

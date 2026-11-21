@@ -29,6 +29,11 @@ dependencies. Written in Go with cgo bindings to IOKit.
 
 Intel Macs do not expose the same sensor keys; sensor discovery is best-effort.
 
+macOS only: fan control uses Apple's SMC through IOKit, which does not exist on
+Windows or Linux. The code builds on those platforms but exits immediately with
+an "only supports Apple Silicon Macs" message, so it can be packaged or
+cross-compiled without link errors.
+
 ## Install
 
 Homebrew (recommended):
