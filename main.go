@@ -110,9 +110,8 @@ func runOnce(model, chip string, writable, jsonOut bool) int {
 }
 
 func maybeElevate() {
-	fmt.Print("\n " + cText + "mac-fan needs root privileges to change fan speed." + cReset + "\n")
-	fmt.Print(" " + cDim + "◎ Use --read-only to skip this prompt next time" + cReset + "\n")
-	fmt.Print(" " + cAccent + "▶ " + cReset + "Enter continue with sudo, Space skip: ")
+	fmt.Print("\n " + cAccent + "▶ " + cText + "Changing fan speed needs sudo" + cReset + cDim +
+		": Enter continue, Space stay read-only " + cReset)
 
 	old, err := makeRaw(0)
 	if err != nil {
@@ -143,11 +142,10 @@ func maybeElevate() {
 			fmt.Print("\n")
 			os.Exit(130)
 		case ' ':
-			fmt.Print(cDim + "read-only" + cReset + "\n")
+			fmt.Print("\n")
 			return
-		default:
-			fmt.Print(cDim + "sudo" + cReset + "\n")
 		}
+		fmt.Print("\n")
 	}
 
 	exe, err := os.Executable()
