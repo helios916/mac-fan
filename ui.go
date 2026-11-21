@@ -511,6 +511,73 @@ func (u *UI) fanRow(i int, f *Fan, cols int) string {
 	return b.String()
 }
 
+// fanRowBig renders a fan as a two-line block with a wider speed bar. It is
+// used when the terminal has enough height, since fan control is the point of
+// the tool.
+func (u *UI) fanRowBig(i int, f *Fan, cols int) []string {
+	var head strings.Builder
+	if i == u.sel {
+		head.WriteString(selMark)
+	} else {
+		head.WriteString("   ")
+	}
+	if u.checked[i] {
+		head.WriteString(checkedMark)
+	} else {
+		head.WriteString(emptyMark)
+	}
+	nameStyle := cText + cBold
+	if i == u.sel {
+		nameStyle = cAccent + cBold
+	}
+	label := fmt.Sprintf("Fan %d", f.Index)
+	head.WriteString(nameStyle)
+	head.WriteString(label)
+	head.WriteString(cReset)
+	if !f.Available {
+		head.WriteString(noKeysMsg)
+		return []string{head.String()}
+	}
+
+	var tail strings.Builder
+	tail.WriteString(cText)
+	tail.WriteString(padLeft(fmt.Sprintf("%.0f", f.Actual), 4))
+	tail.WriteString(" RPM")
+	tail.WriteString(cReset)
+	tail.WriteString("   ")
+	tail.WriteString(f.ModeColor())
+	tail.WriteString(cBold)
+	tail.WriteString(f.ModeLabel())
+	tail.WriteString(cReset)
+
+	line1 := head.String() + "  " + tail.String()
+	if cols >= 68 && f.HasMin && f.HasMax {
+		plain := 3 + 2 + len(label) + 2 + 8 + 3 + len(f.ModeLabel())
+		span := fmt.Sprintf("%.0f-%.0f", f.Min, f.Max)
+		pad := cols - 1 - plain - len(span)
+		if pad < 2 {
+			pad = 2
+		}
+		line1 += strings.Repeat(" ", pad) + cDim + span + cReset
+	}
+
+	barW := cols - 40
+	if barW > 56 {
+		barW = 56
+	}
+	if barW < 20 {
+		barW = 20
+	}
+	var line2 strings.Builder
+	line2.WriteString("      ")
+	line2.WriteString(u.fanBar(f, barW))
+	line2.WriteString(targetLabel)
+	line2.WriteString(cText)
+	line2.WriteString(padLeft(fmt.Sprintf("%.0f", f.Target), 4))
+	line2.WriteString(cReset)
+	return []string{line1, line2.String()}
+}
+
 type groupView struct {
 	g       Group
 	sensors []*Sensor
@@ -793,9 +860,20 @@ func (u *UI) render() {
 	if len(u.fans) == 0 {
 		lines = append(lines, "   "+cWarn+"No fans detected on this Mac"+cReset)
 	} else {
+		big := cols >= 96 && rows >= 30
 		for i, f := range u.fans {
-			lines = append(lines, u.fanRow(i, f, cols))
-			fanButtons = append(fanButtons, uiButton{y: len(lines), x0: 1, x1: cols, sel: i})
+			if !big {
+				lines = append(lines, u.fanRow(i, f, cols))
+				fanButtons = append(fanButtons, uiButton{y: len(lines), x0: 1, x1: cols, sel: i})
+				continue
+			}
+			for _, l := range u.fanRowBig(i, f, cols) {
+				lines = append(lines, l)
+				fanButtons = append(fanButtons, uiButton{y: len(lines), x0: 1, x1: cols, sel: i})
+			}
+			if i < len(u.fans)-1 {
+				lines = append(lines, "")
+			}
 		}
 	}
 
