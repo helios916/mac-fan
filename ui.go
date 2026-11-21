@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -60,6 +62,9 @@ type UI struct {
 	scroll    int
 	maxScroll int
 	buttons   []uiButton
+
+	editing bool
+	buf     string
 }
 
 // uiButton describes a clickable cell range on one rendered row. A negative
@@ -281,6 +286,102 @@ func joinRPM(vals []int) string {
 		parts = append(parts, fmt.Sprintf("%d", v))
 	}
 	return strings.Join(parts, " / ")
+}
+
+func (u *UI) beginInput(ch byte) {
+	if ch < '0' || ch > '9' {
+		return
+	}
+	if !u.writable {
+		u.setStatus(statusErr, "Read-only: run with sudo mac-fan to change fan speed")
+		return
+	}
+	if len(u.targets()) == 0 {
+		return
+	}
+	u.editing = true
+	u.buf = string(ch)
+}
+
+func (u *UI) editKey(ev inputEvent) bool {
+	switch ev.key {
+	case keyRune:
+		if len(u.buf) < 5 {
+			u.buf += string(ev.ch)
+		}
+	case keyBackspace:
+		if len(u.buf) > 0 {
+			u.buf = u.buf[:len(u.buf)-1]
+		}
+		if u.buf == "" {
+			u.editing = false
+		}
+	case keyEnter:
+		u.applyInput()
+	case keyCancel:
+		// While typing, Q cancels the edit instead of quitting the TUI.
+		u.editing = false
+		u.buf = ""
+	case keyQuit:
+		return true
+	}
+	return false
+}
+
+// applyInput validates a typed RPM value and writes it to the same fans the
+// +/- keys would affect.
+func (u *UI) applyInput() {
+	raw := u.buf
+	u.editing = false
+	u.buf = ""
+	if raw == "" {
+		return
+	}
+	rpm, err := strconv.Atoi(raw)
+	if err != nil {
+		u.setStatus(statusErr, "Invalid RPM value")
+		return
+	}
+	if !u.needWrite("change fan speed") {
+		return
+	}
+	targets := u.targets()
+	lo := math.Inf(-1)
+	for _, f := range targets {
+		if f.HasMin && f.Min > lo {
+			lo = f.Min
+		}
+	}
+	if !math.IsInf(lo, -1) && float64(rpm) < lo {
+		hint := ""
+		if rpm >= 1 && rpm <= 100 {
+			hint = fmt.Sprintf(" — did you mean %d%%?", rpm)
+		}
+		u.setStatus(statusErr, "%d RPM is below the minimum %.0f%s", rpm, lo, hint)
+		return
+	}
+
+	applied := 0
+	clamped := false
+	for _, f := range targets {
+		v := float64(rpm)
+		if f.HasMax && v > f.Max {
+			v = f.Max
+			clamped = true
+		}
+		if err := f.SetManual(u.smc, v); err != nil {
+			continue
+		}
+		applied++
+	}
+	switch {
+	case applied == 0:
+		u.setStatus(statusErr, "Could not write fan speed")
+	case clamped:
+		u.setStatus(statusInfo, "Clamped to the maximum supported speed")
+	default:
+		u.setStatus(statusOK, "Set to %d RPM", rpm)
+	}
 }
 
 func (u *UI) manual() {
@@ -851,6 +952,15 @@ func (u *UI) controlsLine(cols int) (string, []uiButton) {
 }
 
 func (u *UI) statusLine(cols int) string {
+	if u.editing && u.sel < len(u.fans) {
+		label := fmt.Sprintf("Fan %d", u.fans[u.sel].Index)
+		if n := u.checkedCount(); n > 0 {
+			label = fmt.Sprintf("%d fans", n)
+		}
+		s := " " + cAccent + cBold + label + " · target RPM: " + cReset +
+			cText + u.buf + cAccent + "▏" + cReset + cDim + "  Enter apply · Q cancel" + cReset
+		return truncate(s, cols-1)
+	}
 	text := ""
 	col := cDim
 
@@ -871,7 +981,7 @@ func (u *UI) statusLine(cols int) string {
 		text = fmt.Sprintf("%d %s selected · system control is restored on exit", u.checkedCount(), plural(u.checkedCount(), "fan", "fans"))
 		col = cPurple
 	default:
-		text = "Space selects multiple fans · system control is restored on exit"
+		text = "Space selects multiple fans · digits set RPM · system control is restored on exit"
 	}
 	return truncate(" "+col+text+cReset, cols-1)
 }

@@ -25,6 +25,10 @@ const (
 	keyWheelUp
 	keyWheelDown
 	keyClick
+	keyRune
+	keyEnter
+	keyBackspace
+	keyCancel
 )
 
 // inputEvent carries a key press or a mouse event. Mouse events arrive with
@@ -33,6 +37,7 @@ type inputEvent struct {
 	key key
 	x   int
 	y   int
+	ch  byte
 }
 
 type winsize struct {
@@ -96,10 +101,14 @@ func inputLoop(ch chan<- inputEvent) {
 		switch b {
 		case 0x03:
 			emit(keyQuit)
+		case 0x0d, 0x0a:
+			emit(keyEnter)
+		case 0x7f, 0x08:
+			emit(keyBackspace)
 		case ' ':
 			emit(keyToggle)
 		case 'q', 'Q':
-			emit(keyQuit)
+			emit(keyCancel)
 		case 'k', 'K':
 			emit(keyUp)
 		case 'j', 'J':
@@ -161,6 +170,10 @@ func inputLoop(ch chan<- inputEvent) {
 						}
 					}
 				}
+			}
+		default:
+			if b >= '0' && b <= '9' {
+				ch <- inputEvent{key: keyRune, ch: b}
 			}
 		}
 	}

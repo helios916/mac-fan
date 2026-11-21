@@ -260,6 +260,9 @@ func handleEvent(ui *UI, ev inputEvent) bool {
 		ui.scrollSensors(3)
 		return false
 	case keyClick:
+		if ui.editing {
+			return false
+		}
 		for _, b := range ui.buttons {
 			if ev.y != b.y || ev.x < b.x0 || ev.x > b.x1 {
 				continue
@@ -269,16 +272,23 @@ func handleEvent(ui *UI, ev inputEvent) bool {
 				return false
 			}
 			if b.action != keyNone {
-				return handleKey(ui, b.action)
+				return handleKey(ui, inputEvent{key: b.action})
 			}
 		}
 		return false
 	}
-	return handleKey(ui, ev.key)
+	return handleKey(ui, ev)
 }
 
-func handleKey(ui *UI, k key) bool {
-	switch k {
+func handleKey(ui *UI, ev inputEvent) bool {
+	if ui.editing {
+		return ui.editKey(ev)
+	}
+	if ev.key == keyRune {
+		ui.beginInput(ev.ch)
+		return false
+	}
+	switch ev.key {
 	case keyUp:
 		ui.move(-1)
 	case keyDown:
@@ -299,7 +309,7 @@ func handleKey(ui *UI, k key) bool {
 		ui.allAuto()
 	case keyToggle:
 		ui.toggle()
-	case keyQuit:
+	case keyCancel, keyQuit:
 		return true
 	}
 	return false
