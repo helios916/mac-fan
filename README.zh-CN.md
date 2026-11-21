@@ -22,7 +22,17 @@
 
 Intel Mac 不暴露相同的传感器键，传感器发现为尽力而为。
 
-## 构建与安装
+## 安装
+
+Homebrew（推荐）：
+
+```sh
+brew install helios916/mac-fan/mac-fan
+```
+
+公式会在本机编译（cgo + IOKit），不下载预编译包，所以首次安装需要一两分钟编译。跟随 `main` 分支用 `brew install --HEAD helios916/mac-fan/mac-fan`，升级用 `brew upgrade mac-fan`，卸载用 `brew uninstall mac-fan`。装了 Homebrew 就不必单独准备 Go，Brew 会自动装 `go` 公式，并自带 Xcode Command Line Tools。
+
+## 从源码构建
 
 在仓库目录内：
 

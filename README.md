@@ -29,7 +29,22 @@ dependencies. Written in Go with cgo bindings to IOKit.
 
 Intel Macs do not expose the same sensor keys; sensor discovery is best-effort.
 
-## Build and install
+## Install
+
+Homebrew (recommended):
+
+```sh
+brew install helios916/mac-fan/mac-fan
+```
+
+The formula compiles on your machine (cgo + IOKit) rather than shipping a
+prebuilt bottle, so the first install spends a minute or two building. Use
+`brew install --HEAD helios916/mac-fan/mac-fan` to follow `main`, `brew upgrade
+mac-fan` to update, `brew uninstall mac-fan` to remove. With Homebrew you do
+not need to provide Go yourself — Brew pulls the `go` formula — and the Xcode
+Command Line Tools are already there.
+
+## Build from source
 
 From a checkout:
 
